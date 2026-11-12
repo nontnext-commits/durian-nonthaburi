@@ -51,7 +51,7 @@ footer{color:var(--mute);font-size:13px;margin-top:28px;border-top:1px solid var
 const WORKER_URL = 'https://durian-nonthaburi.nontnext.workers.dev';
 const STAGES = ['ยังไม่ออกดอก', 'ดอกบาน', 'ผลเล็ก', 'พร้อมตัด', 'หมดรอบนี้'];
 const TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-let D = null, filter = '';
+let D = null, filter = '', VARS = [];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const safeUrl = (u) => (/^https:\/\//.test(u || '') ? u : '');
 const dt = (iso) => { const d = new Date(iso); return isNaN(d) ? '-' : `${d.getDate()} ${TM[d.getMonth()]}`; };
@@ -75,7 +75,8 @@ const varietiesOf = (f) => [...new Set([...Object.keys(f.trees || {}), ...lotsOf
 const photoOf = (f) => { const ph = D.photos.filter((p) => p.farm_id === f.farm_id); return (ph.length && ph[ph.length - 1].url) || f.cover_photo_url || ''; };
 
 function list() {
-  const vars = D.varieties.map((v) => v.variety);
+  VARS = D.varieties.map((v) => v.variety).filter((v) => D.farms.some((f) => varietiesOf(f).includes(v)));
+  const vars = VARS;
   let farms = D.farms.map((f) => {
     const vs = varietiesOf(f).filter((v) => !filter || v === filter);
     const best = vs.map((v) => ({ v, ...primary(lotsOf(f.farm_id, v)) })).filter((x) => x.p)
@@ -92,7 +93,7 @@ function list() {
       ${best.slice(0, 3).map((x) => `<span class="tag ${has(x.p) ? '' : 'g'}">${esc(x.v)} · ${esc(stat(x.p))}</span>`).join('')}</div></a>`;
     }).join('') || '<p class="mu">ยังไม่มีสวนที่ตรงกับพันธุ์นี้</p>'}</div>`;
 }
-function setF(i) { filter = i === '' ? '' : D.varieties[i].variety; list(); }
+function setF(i) { filter = i === '' ? '' : VARS[i]; list(); }
 
 function detail(id) {
   const f = D.farms.find((x) => x.farm_id === id);
