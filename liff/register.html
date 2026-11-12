@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ลงทะเบียนสวนทุเรียนนนท์</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>ลงทะเบียนสวนทุเรียนนนท์</h1>
+  <div class="mu" id="who">กำลังเชื่อมต่อ LINE…</div>
+  <div class="dots" id="dots"></div>
+  <div class="card" id="page"></div>
+  <div class="err" id="err" role="alert"></div>
+</div>
+<div class="bar"><div class="in"><button id="back" onclick="go(-1)">ย้อนกลับ</button><button class="pri" id="next" onclick="go(1)">ถัดไป</button></div></div>
+<script>
+const C = window.APP_CONFIG;
+const S = { step: 0, done: null, varieties: [], idToken: null,
+  f: { farm_name: '', owner_name: '', tambon: '', phone: '', lat: '', lng: '', vars: {}, show_gps: 'tambon', show_phone: true,
+       pickup: 'รับเองที่สวน', accepts_booking: true, line_oa_id: '', facebook_url: '', story: '', pdpa: false } };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function showErr(m) { $('err').textContent = m || ''; }
+
+async function init() {
+  try {
+    await liff.init({ liffId: C.LIFF_REGISTER_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    S.idToken = liff.getIDToken();
+    const p = await liff.getProfile().catch(() => ({}));
+    $('who').textContent = 'ลงทะเบียนด้วย LINE: ' + (p.displayName || '');
+  } catch (e) { $('who').textContent = 'เปิดหน้านี้จากใน LINE เพื่อลงทะเบียน'; }
+  try { S.varieties = await (await fetch(C.WORKER_URL + '/api/varieties')).json(); } catch (e) { S.varieties = []; }
+  render();
+}
+
+const OPTS = {};
+function opt(key, items) {
+  OPTS[key] = items;
+  return `<div class="opt">${items.map(([v, l], i) => `<button type="button" class="${S.f[key] === v ? 'sel' : ''}" onclick="setOpt('${key}',${i})">${l}</button>`).join('')}</div>`;
+}
+function setOpt(key, i) { S.f[key] = OPTS[key][i][0]; render(); }
+const vIdx = (name) => S.varieties.findIndex((v) => v.variety === name);
+
+const PAGES = [
+  () => `<h2>1. ข้อมูลสวน</h2>
+    <label class="f" for="fn">ชื่อสวน</label><input id="fn" value="${esc(S.f.farm_name)}" placeholder="สวนลุงทองคำ" oninput="S.f.farm_name=this.value;showErr()">
+    <label class="f" for="on">ชื่อ-นามสกุลเจ้าของสวน</label><input id="on" value="${esc(S.f.owner_name)}" placeholder="ทองคำ มีสุข" oninput="S.f.owner_name=this.value;showErr()">
+    <label class="f" for="tb">ตำบล</label><select id="tb" onchange="S.f.tambon=this.value;showErr()"><option value="">เลือกตำบล</option>${C.TAMBONS.map((t) => `<option ${S.f.tambon === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+    <label class="f" for="ph">เบอร์โทร</label><input id="ph" value="${esc(S.f.phone)}" inputmode="tel" placeholder="081-234-5678" oninput="S.f.phone=this.value;showErr()">
+    <label class="f">พิกัดสวน (ยืนอยู่ในสวนแล้วกด)</label>
+    <button type="button" style="width:100%" onclick="pin()">${S.f.lat ? `ปักหมุดแล้ว ${Number(S.f.lat).toFixed(5)}, ${Number(S.f.lng).toFixed(5)}` : 'ใช้ตำแหน่งปัจจุบัน'}</button>`,
+  () => `<h2>2. พันธุ์และจำนวนต้น</h2>
+    <div class="chips">${S.varieties.map((v) => `<button type="button" class="${S.f.vars[v.variety] !== undefined ? 'sel' : ''}" onclick="tog(${vIdx(v.variety)})">${esc(v.variety)}</button>`).join('')}</div>
+    <p class="mu">ไม่มีพันธุ์ที่ปลูกในรายการ: แจ้งเจ้าหน้าที่ให้เพิ่มในรายการกลาง</p>
+    ${Object.keys(S.f.vars).map((v) => `<div class="row"><span>${esc(v)}</span><div class="st">
+      <button type="button" aria-label="ลด ${esc(v)}" onclick="tree(${vIdx(v)},-1)">−</button>
+      <input aria-label="จำนวนต้น ${esc(v)}" inputmode="numeric" value="${S.f.vars[v] || ''}" placeholder="0" oninput="setTree(${vIdx(v)},this.value)">
+      <button type="button" aria-label="เพิ่ม ${esc(v)}" onclick="tree(${vIdx(v)},1)">+</button><span class="mu">ต้น</span></div></div>`).join('')}`,
+  () => `<h2>3. ช่องทางติดต่อและความยินยอม</h2>
+    <label class="f">พิกัดบนแผนที่สาธารณะ</label>${opt('show_gps', [['exact', 'ปักหมุดจริง'], ['tambon', 'แสดงแค่ตำบล']])}
+    <label class="f">แสดงเบอร์โทรบนการ์ดสวน</label>${opt('show_phone', [[true, 'แสดง'], [false, 'ไม่แสดง']])}
+    <label class="f">การรับสินค้า</label>${opt('pickup', [['รับเองที่สวน', 'รับเองที่สวน'], ['จัดส่งได้', 'จัดส่งได้']])}
+    <label class="f">รับจองล่วงหน้า</label>${opt('accepts_booking', [[true, 'รับจอง'], [false, 'ไม่รับจอง']])}
+    <label class="f" for="lo">LINE ของสวน (ไม่บังคับ)</label><input id="lo" value="${esc(S.f.line_oa_id)}" placeholder="@suanlungtong" oninput="S.f.line_oa_id=this.value">
+    <label class="f" for="fb">เพจ Facebook (ไม่บังคับ)</label><input id="fb" value="${esc(S.f.facebook_url)}" placeholder="https://facebook.com/..." oninput="S.f.facebook_url=this.value">
+    <label class="ck" style="margin-top:14px"><input type="checkbox" ${S.f.pdpa ? 'checked' : ''} onchange="S.f.pdpa=this.checked;showErr()">
+    <span>ยินยอมให้โครงการเก็บและแสดงข้อมูลสวนตามที่เลือกไว้ และส่งต่อข้อมูลให้หน่วยงานหรือกลุ่มที่รับดูแลระบบต่อเมื่อจบโครงการ</span></label>`,
+  () => `<h2>4. เรื่องเล่าประจำสวน <span class="mu">(ไม่บังคับ)</span></h2>
+    <textarea placeholder="สวนรุ่นที่ 3 ปลูกก้านยาวต้นแม่อายุกว่า 60 ปี ฟื้นสวนหลังน้ำท่วมปี 2554" oninput="S.f.story=this.value">${esc(S.f.story)}</textarea>
+    <p class="mu">รูปเจ้าของสวนและรูปบรรยากาศสวน ส่งในแชตหลังลงทะเบียนได้เลย</p>`,
+  () => S.done ? `<h2>ส่งข้อมูลแล้ว</h2>
+    <p>สวนอยู่ในสถานะ <b>รอเจ้าหน้าที่ยืนยัน</b> (ภายใน 3 วันทำการ) ระหว่างนี้อัปเดตผลผลิตผ่านแชตได้เลย แต่ลูกค้าจะยังไม่เห็นสวนนี้</p>
+    <p>รหัสเชิญให้ลูกหลานช่วยดูแลสวน: <b style="font-size:24px;letter-spacing:3px">${esc(S.done.invite_code)}</b><br><span class="mu">ให้ลูกหลานเพิ่มเพื่อน LINE OA เกษตรกร แล้วพิมพ์รหัสนี้ (ใช้ได้ 24 ชั่วโมง)</span></p>`
+    : `<h2>5. ตรวจทานก่อนส่ง</h2>
+    <p><b>${esc(S.f.farm_name)}</b> · ${esc(S.f.owner_name)} · ${esc(S.f.tambon)}<br>โทร ${esc(S.f.phone)}</p>
+    <p>${Object.entries(S.f.vars).map(([v, n]) => `${esc(v)} ${n} ต้น`).join(', ')}<br><span class="mu">รวม ${Object.values(S.f.vars).reduce((a, n) => a + n, 0)} ต้น</span></p>
+    <p class="mu">พิกัด: ${S.f.lat ? 'ปักหมุดแล้ว' : 'ยังไม่ได้ปักหมุด'} · แสดง${S.f.show_gps === 'exact' ? 'หมุดจริง' : 'แค่ตำบล'} · เบอร์โทร${S.f.show_phone ? 'แสดง' : 'ไม่แสดง'}</p>`
+];
+
+function render() {
+  $('dots').innerHTML = PAGES.map((_, i) => `<i class="${i <= S.step ? 'on' : ''}"></i>`).join('');
+  $('page').innerHTML = PAGES[S.step]();
+  $('back').style.visibility = S.step && !S.done ? 'visible' : 'hidden';
+  $('next').textContent = S.done ? 'ปิดหน้านี้' : S.step === 4 ? 'ส่งข้อมูล' : 'ถัดไป';
+}
+function tog(i) { const v = S.varieties[i].variety; if (S.f.vars[v] === undefined) S.f.vars[v] = 0; else delete S.f.vars[v]; render(); }
+function tree(i, d) { const v = S.varieties[i].variety; S.f.vars[v] = Math.max(0, (S.f.vars[v] || 0) + d); render(); }
+function setTree(i, val) { S.f.vars[S.varieties[i].variety] = parseInt(String(val).replace(/\D/g, ''), 10) || 0; showErr(); }
+function pin() {
+  if (!navigator.geolocation) return showErr('อุปกรณ์นี้หาตำแหน่งไม่ได้');
+  navigator.geolocation.getCurrentPosition((p) => { S.f.lat = p.coords.latitude; S.f.lng = p.coords.longitude; showErr(); render(); },
+    () => showErr('หาตำแหน่งไม่ได้ ตรวจว่าเปิด GPS และอนุญาตให้ LINE ใช้ตำแหน่งแล้ว'), { enableHighAccuracy: true, timeout: 15000 });
+}
+async function go(d) {
+  if (S.done) { try { liff.closeWindow(); } catch (e) {} return; }
+  if (d < 0) { S.step--; showErr(); render(); return; }
+  const f = S.f;
+  if (S.step === 0) {
+    if (!f.farm_name.trim() || !f.owner_name.trim()) return showErr('กรอกชื่อสวนและชื่อเจ้าของก่อน');
+    if (!f.tambon) return showErr('เลือกตำบลก่อน');
+    if (f.phone.replace(/\D/g, '').length < 9) return showErr('กรอกเบอร์โทรให้ครบ 9–10 หลัก');
+  }
+  if (S.step === 1) {
+    const vs = Object.keys(f.vars);
+    if (!vs.length) return showErr('เลือกอย่างน้อย 1 พันธุ์');
+    const miss = vs.filter((v) => !(f.vars[v] > 0));
+    if (miss.length) return showErr('ระบุจำนวนต้นของ ' + miss.join(', '));
+  }
+  if (S.step === 2 && !f.pdpa) return showErr('ต้องได้รับความยินยอมก่อนส่งข้อมูล');
+  if (S.step === 4) {
+    if (!S.idToken) return showErr('เปิดหน้านี้จากใน LINE เพื่อส่งข้อมูล');
+    $('next').disabled = true; $('next').textContent = 'กำลังส่ง…';
+    try {
+      const form = { ...f, varieties: Object.entries(f.vars).map(([variety, trees]) => ({ variety, trees })) };
+      delete form.vars;
+      const r = await fetch(C.WORKER_URL + '/api/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: S.idToken, form }) });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || 'ส่งข้อมูลไม่สำเร็จ');
+      S.done = j; showErr();
+    } catch (e) { showErr(e.message); }
+    $('next').disabled = false; render(); return;
+  }
+  S.step++; showErr(); render();
+}
+init();
+</script>
+</body>
+</html>

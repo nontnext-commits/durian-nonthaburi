@@ -1,0 +1,33 @@
+name = "durian-nonthaburi"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# ดึงข้อมูลจาก Google Sheets มาเก็บใน KV ทุก 5 นาที
+[triggers]
+crons = ["*/5 * * * *"]
+
+# สร้างด้วย: npx wrangler kv namespace create DATA  แล้วนำ id มาใส่
+[[kv_namespaces]]
+binding = "DATA"
+id = "b145550bfccc427694e2a399f4ce2968"
+
+[vars]
+WEB_URL = "https://<github-user>.github.io/durian-nonthaburi/web/"
+ALLOWED_ORIGIN = "https://<github-user>.github.io"
+LIFF_REGISTER_ID = "ใส่_LIFF_ID_หน้าลงทะเบียน"
+LIFF_TABLE_ID = "ใส่_LIFF_ID_หน้าตาราง"
+LINE_LOGIN_CHANNEL_ID = "ใส่_Channel_ID_ของ_LINE_Login"
+AI_PROVIDER = "anthropic"   # หรือ gemini
+AI_MODEL = "claude-haiku-5-5"   # หรือ gemini-2.5-flash-lite
+CLOUDINARY_CLOUD = "ใส่_cloud_name"
+
+# ค่าลับ ตั้งด้วยคำสั่ง (ห้ามใส่ในไฟล์นี้):
+#   npx wrangler secret put GAS_URL
+#   npx wrangler secret put GAS_SECRET
+#   npx wrangler secret put LINE_FARMER_SECRET
+#   npx wrangler secret put LINE_FARMER_TOKEN
+#   npx wrangler secret put LINE_CUSTOMER_SECRET
+#   npx wrangler secret put LINE_CUSTOMER_TOKEN
+#   npx wrangler secret put CLOUDINARY_API_KEY
+#   npx wrangler secret put CLOUDINARY_API_SECRET
+#   npx wrangler secret put ANTHROPIC_API_KEY   (หรือ GEMINI_API_KEY)

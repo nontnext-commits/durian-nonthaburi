@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>อัปเดตสวนแบบตาราง</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">อัปเดตทุกพันธุ์</h1>
+  <div class="mu" id="sub">กำลังโหลด…</div>
+  <div class="card" id="list"></div>
+  <div class="err" id="err" role="alert"></div>
+</div>
+<div class="bar"><div class="in"><button onclick="load()">ยกเลิก</button><button class="pri" id="save" onclick="save()">บันทึก</button></div></div>
+<script>
+const C = window.APP_CONFIG;
+const STAGES = ['ยังไม่ออกดอก', 'ดอกบาน', 'ผลเล็ก', 'พร้อมตัด', 'หมด/ปิดรุ่น'];
+let token = null, lots = [], edit = [];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const post = async (path, body) => {
+  const r = await fetch(C.WORKER_URL + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: token, ...body }) });
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error(j.error || 'เกิดข้อผิดพลาด');
+  return j;
+};
+async function init() {
+  try {
+    await liff.init({ liffId: C.LIFF_TABLE_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    token = liff.getIDToken();
+    await load();
+  } catch (e) { $('sub').textContent = 'เปิดหน้านี้จากใน LINE OA เกษตรกร'; }
+}
+async function load() {
+  $('err').textContent = '';
+  const ctx = await post('/api/myfarm', {});
+  if (!ctx.farm) { $('sub').textContent = 'บัญชีนี้ยังไม่ได้ผูกกับสวน'; $('list').innerHTML = ''; return; }
+  $('title').textContent = ctx.farm.farm_name;
+  $('sub').textContent = 'แก้เฉพาะรายการที่เปลี่ยน แล้วกดบันทึกครั้งเดียว';
+  const multi = (l) => l.wave > 1 || ctx.lots.some((x) => x !== l && x.variety === l.variety && x.stage > 0 && x.stage < 4);
+  lots = ctx.lots.sort((a, b) => a.variety.localeCompare(b.variety, 'th') || a.wave - b.wave)
+    .map((l) => ({ ...l, label: multi(l) ? `${l.variety} รุ่น ${l.wave}` : l.variety, trees: (ctx.varieties.find((v) => v.variety === l.variety) || {}).trees }));
+  edit = lots.map((l) => ({ stage: l.stage, remaining: l.remaining }));
+  $('list').innerHTML = lots.map((l, i) => `<div class="tr" id="r${i}">
+    <div><b>${esc(l.label)}</b><br><span class="mu">${l.trees ? l.trees + ' ต้น · ' : ''}อัปเดต ${new Date(l.updated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span></div>
+    <div class="mu" style="text-align:right">จำนวนผล</div>
+    <div class="ctl"><select aria-label="ระยะ ${esc(l.label)}" onchange="edit[${i}].stage=+this.value;mark(${i})">${STAGES.map((s, k) => `<option value="${k}" ${k === l.stage ? 'selected' : ''}>${s}</option>`).join('')}</select>
+    <div class="st"><button aria-label="ลด" onclick="step(${i},-1)">−</button><input id="n${i}" inputmode="numeric" value="${l.remaining}" aria-label="จำนวนผล ${esc(l.label)}" oninput="edit[${i}].remaining=parseInt(this.value.replace(/\\D/g,''))||0;mark(${i})"><button aria-label="เพิ่ม" onclick="step(${i},1)">+</button></div></div>
+  </div>`).join('') || '<p class="mu">ยังไม่มีรุ่นที่เปิดอยู่</p>';
+}
+function step(i, d) { edit[i].remaining = Math.max(0, edit[i].remaining + d); $('n' + i).value = edit[i].remaining; mark(i); }
+function mark(i) { $('r' + i).classList.toggle('chg', edit[i].stage !== lots[i].stage || edit[i].remaining !== lots[i].remaining); }
+async function save() {
+  const items = lots.map((l, i) => ({ lot_id: l.lot_id, ...edit[i] })).filter((x, i) => x.stage !== lots[i].stage || x.remaining !== lots[i].remaining);
+  if (!items.length) { $('err').textContent = 'ยังไม่มีรายการไหนเปลี่ยน'; return; }
+  $('save').disabled = true; $('save').textContent = 'กำลังบันทึก…';
+  try { const r = await post('/api/table', { items }); await load(); $('err').textContent = ''; $('sub').textContent = `บันทึกแล้ว ${r.changed.length} รายการ`; }
+  catch (e) { $('err').textContent = e.message; }
+  $('save').disabled = false; $('save').textContent = 'บันทึก';
+}
+init();
+</script>
+</body>
+</html>

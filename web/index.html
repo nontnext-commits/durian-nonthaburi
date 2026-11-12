@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สวนทุเรียนนนท์ · เรื่องเล่าจากสวน</title>
+<meta name="description" content="รวมสวนทุเรียนนนท์ที่สำนักงานเกษตรอำเภอยืนยันแล้ว ดูรูปพัฒนาการจริงตั้งแต่ดอกจนผลแก่ และติดต่อสวนได้โดยตรง">
+<meta property="og:title" content="สวนทุเรียนนนท์ · เรื่องเล่าจากสวน">
+<meta property="og:description" content="ดูรูปพัฒนาการจริงของแต่ละสวน และติดต่อสวนได้โดยตรง">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--soft:#f1efe8;--line:#e2dfd5;--ink:#22211e;--mute:#6b6962;--acc:#06c755;--accbg:#e7f8ee;--acctx:#0a6b35;--wa:#946000}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sarabun',system-ui,sans-serif;line-height:1.6}
+.wrap{max-width:960px;margin:0 auto;padding:18px 16px 40px}
+header h1{font-size:26px;margin:0}header p{color:var(--mute);margin:4px 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chips button{font:inherit;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;cursor:pointer}
+.chips button.on{background:var(--accbg);border-color:var(--acc);color:var(--acctx)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.fc{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;display:block}
+.fc .img{aspect-ratio:20/13;background:var(--soft) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:14px}
+.fc .b{padding:10px 12px}.fc h3{margin:0;font-size:18px}
+.mu{color:var(--mute);font-size:14px}.wa{color:var(--wa)}
+.tag{display:inline-block;font-size:13px;padding:1px 10px;border-radius:999px;background:var(--accbg);color:var(--acctx);margin:4px 4px 0 0}
+.tag.g{background:var(--soft);color:var(--mute)}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.cover{aspect-ratio:3/1;background:var(--soft) center/cover no-repeat}
+.dp{padding:16px}.owner{display:flex;gap:12px;align-items:center}
+.owner .av{width:64px;height:64px;border-radius:50%;background:var(--soft) center/cover no-repeat;flex:none}
+.story{font-size:17px;border-left:3px solid var(--acc);padding-left:12px;margin:14px 0}
+.vs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:12px 0}
+.v{border:1px solid var(--line);border-radius:12px;padding:10px}
+.tl{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.tl figure{margin:0;flex:none;width:200px}.tl img{width:200px;height:150px;object-fit:cover;border-radius:10px;display:block}
+.tl figcaption{font-size:13px;color:var(--mute)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btns a{text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 14px;color:var(--ink);background:var(--card)}
+.btns a.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.back{display:inline-block;margin-bottom:10px;color:var(--acctx)}
+footer{color:var(--mute);font-size:13px;margin-top:28px;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>สวนทุเรียนนนท์</h1><p>สวนที่สำนักงานเกษตรอำเภอยืนยันแล้ว · รูปพัฒนาการจริงจากสวน · ติดต่อสวนได้โดยตรง</p></header>
+  <main id="app"><p class="mu">กำลังโหลดข้อมูลสวน…</p></main>
+  <footer>สำนักงานเกษตรอำเภอเป็นผู้นำเสนอข้อมูลเท่านั้น ราคา การจอง และการซื้อขายเป็นข้อตกลงระหว่างผู้ซื้อกับสวนโดยตรง ·
+    เกณฑ์การเรียงสวน: มีผลผลิตพร้อมขาย > ระยะการพัฒนา > อัปเดตล่าสุด · ข้อมูลอัปเดตทุก 5 นาที <span id="gen"></span></footer>
+</div>
+<script>
+const WORKER_URL = 'https://durian-nonthaburi.nontnext.workers.dev';
+const STAGES = ['ยังไม่ออกดอก', 'ดอกบาน', 'ผลเล็ก', 'พร้อมตัด', 'หมดรอบนี้'];
+const TM = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+let D = null, filter = '';
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = (u) => (/^https:\/\//.test(u || '') ? u : '');
+const dt = (iso) => { const d = new Date(iso); return isNaN(d) ? '-' : `${d.getDate()} ${TM[d.getMonth()]}`; };
+const per = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; const x = d.getDate(); return `${x <= 10 ? 'ต้น' : x <= 20 ? 'กลาง' : 'ปลาย'} ${TM[d.getMonth()]}`; };
+const has = (l) => (l.stage === 2 || l.stage === 3) && l.remaining > 0;
+function primary(lots) {
+  const o = lots.filter((l) => l.stage < 4);
+  if (!o.length) return { p: lots[lots.length - 1], nx: null };
+  o.sort((a, b) => ((b.stage === 3 && b.remaining > 0) - (a.stage === 3 && a.remaining > 0)) || (b.stage - a.stage));
+  return { p: o[0], nx: o[1] || null };
+}
+function stat(l) {
+  if (!l) return '-';
+  if (l.stage === 3 && l.remaining > 0) return `พร้อมตัด คงเหลือ ~${l.remaining} ลูก`;
+  if (l.stage === 2) return `ผลเล็ก${l.remaining ? ` เปิดจอง ~${l.remaining} ลูก` : ''}${l.harvest_from ? ' คาดตัด ' + per(l.harvest_from) : ''}`;
+  if (l.stage === 1) return `ดอกบาน${l.harvest_from ? ' คาดตัด ' + per(l.harvest_from) : ''}`;
+  return STAGES[l.stage];
+}
+const lotsOf = (fid, v) => D.lots.filter((l) => l.farm_id === fid && (!v || l.variety === v));
+const varietiesOf = (f) => [...new Set([...Object.keys(f.trees || {}), ...lotsOf(f.farm_id).map((l) => l.variety)])];
+const photoOf = (f) => { const ph = D.photos.filter((p) => p.farm_id === f.farm_id); return (ph.length && ph[ph.length - 1].url) || f.cover_photo_url || ''; };
+
+function list() {
+  const vars = D.varieties.map((v) => v.variety);
+  let farms = D.farms.map((f) => {
+    const vs = varietiesOf(f).filter((v) => !filter || v === filter);
+    const best = vs.map((v) => ({ v, ...primary(lotsOf(f.farm_id, v)) })).filter((x) => x.p)
+      .sort((a, b) => (has(b.p) - has(a.p)) || (b.p.stage - a.p.stage));
+    return { f, vs, best };
+  }).filter((x) => x.vs.length);
+  farms.sort((a, b) => ((b.best[0] && has(b.best[0].p)) - (a.best[0] && has(a.best[0].p))) || ((b.best[0] || { p: { stage: 0 } }).p.stage - (a.best[0] || { p: { stage: 0 } }).p.stage));
+  document.getElementById('app').innerHTML = `
+    <div class="chips"><button class="${filter ? '' : 'on'}" onclick="setF('')">ทุกพันธุ์</button>${vars.map((v, i) => `<button class="${filter === v ? 'on' : ''}" onclick="setF(${i})">${esc(v)}</button>`).join('')}</div>
+    <div class="grid">${farms.map(({ f, best }) => {
+      const img = safeUrl(photoOf(f));
+      return `<a class="fc" href="#farm-${esc(f.farm_id)}"><div class="img" style="${img ? `background-image:url('${img}')` : ''}">${img ? '' : 'ยังไม่มีรูปจากสวน'}</div>
+      <div class="b"><h3>${esc(f.farm_name)}</h3><div class="mu">${esc(f.tambon)}${f.accepts_booking ? ' · รับจอง' : ''}</div>
+      ${best.slice(0, 3).map((x) => `<span class="tag ${has(x.p) ? '' : 'g'}">${esc(x.v)} · ${esc(stat(x.p))}</span>`).join('')}</div></a>`;
+    }).join('') || '<p class="mu">ยังไม่มีสวนที่ตรงกับพันธุ์นี้</p>'}</div>`;
+}
+function setF(i) { filter = i === '' ? '' : D.varieties[i].variety; list(); }
+
+function detail(id) {
+  const f = D.farms.find((x) => x.farm_id === id);
+  if (!f) { location.hash = ''; return; }
+  const cover = safeUrl(f.cover_photo_url || photoOf(f)), av = safeUrl(f.owner_photo_url);
+  const vs = varietiesOf(f).map((v) => ({ v, ...primary(lotsOf(f.farm_id, v)) }));
+  const photos = D.photos.filter((p) => p.farm_id === id && safeUrl(p.url));
+  const groups = [...new Set(photos.map((p) => p.variety || 'บรรยากาศสวน'))];
+  const tel = f.phone ? String(f.phone).replace(/[^\d+]/g, '') : '';
+  const line = f.line_oa_id ? `https://line.me/R/ti/p/${encodeURIComponent(f.line_oa_id.startsWith('@') ? f.line_oa_id : '@' + f.line_oa_id)}` : '';
+  document.getElementById('app').innerHTML = `<a class="back" href="#">‹ สวนทั้งหมด</a>
+  <article class="detail"><div class="cover" style="${cover ? `background-image:url('${cover}')` : ''}"></div><div class="dp">
+    <div class="owner"><div class="av" style="${av ? `background-image:url('${av}')` : ''}"></div><div><h2 style="margin:0">${esc(f.farm_name)}</h2>
+    <div class="mu">${esc(f.owner_name || '')} · ${esc(f.tambon)} · ยืนยันโดยสำนักงานเกษตรอำเภอ${f.gap_gi_no ? ' · ' + esc(f.gap_gi_no) : ''}</div></div></div>
+    ${f.story ? `<p class="story">${esc(f.story)}</p>` : ''}
+    <h3>พันธุ์ที่ปลูกและผลผลิตตอนนี้</h3>
+    <div class="vs">${vs.map((x) => `<div class="v"><b>${esc(x.v)}</b>${f.trees && f.trees[x.v] ? ` <span class="mu">${f.trees[x.v]} ต้น</span>` : ''}<br>${esc(stat(x.p))}
+      ${x.nx ? `<br><span class="mu">รุ่นถัดไป: ${esc(stat(x.nx))}</span>` : ''}${x.p ? `<br><span class="mu">อัปเดต ${dt(x.p.updated_at)} · ราคาสอบถามสวน</span>` : ''}</div>`).join('')}</div>
+    <h3>ไทม์ไลน์รูปจากสวน</h3>
+    ${groups.length ? groups.map((g) => `<p class="mu" style="margin:10px 0 4px">${esc(g)}</p><div class="tl">${photos.filter((p) => (p.variety || 'บรรยากาศสวน') === g)
+      .map((p) => `<figure><img loading="lazy" src="${safeUrl(p.url)}" alt="${esc(g)} ระยะ${esc(STAGES[p.stage])}"><figcaption>${STAGES[p.stage]} · ถ่ายเมื่อ ${dt(p.at)}</figcaption></figure>`).join('')}</div>`).join('') : '<p class="mu">สวนยังไม่ได้ส่งรูป</p>'}
+    <div class="btns">${tel ? `<a class="pri" href="tel:${tel}">โทร ${esc(f.phone)}</a>` : ''}${line ? `<a href="${line}">LINE ของสวน</a>` : ''}
+      ${safeUrl(f.facebook_url) ? `<a href="${safeUrl(f.facebook_url)}">Facebook</a>` : ''}
+      ${f.lat && f.lng ? `<a href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lng}">นำทางไปสวน</a>` : ''}</div>
+    ${tel ? `<p class="mu">โทร ${esc(f.phone)}</p>` : ''}
+  </div></article>`;
+  window.scrollTo(0, 0);
+}
+function route() { const h = location.hash.slice(1); if (h.startsWith('farm-')) detail(h.slice(5)); else list(); }
+window.addEventListener('hashchange', route);
+fetch(WORKER_URL + '/api/public').then((r) => r.json()).then((d) => {
+  D = d; document.getElementById('gen').textContent = '· ล่าสุด ' + new Date(d.generated_at).toLocaleString('th-TH'); route();
+}).catch(() => { document.getElementById('app').innerHTML = '<p class="mu">โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง</p>'; });
+</script>
+</body>
+</html>
